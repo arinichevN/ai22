@@ -180,7 +180,7 @@ void puart_server(PUART *item, Device *devices, int len) {
 			    //  SP(device->temperature.id);SWDB;SP(25.18);SWDB;SP(1);SWDB;SP(millis());SWDE;SF;
 			  }
 			  if (device->humidity.selected) {
-			    SP(device->humidity.id); SWDB; SP(device->humidity.output.value); SWDB; SP(device->humidity.output.state); SWDB; SP(device->humidity.output.tm); SWDE; SF;
+			    SP(device->humidity.id); SWDB; SP(device->humidity.output.value); SWDB; SP(device->humidity.output.tm); SWDB; SP(device->humidity.output.state); SWDE; SF;
 			    // SP(device->humidity.id);SWDB;SP(76.18);SWDB;SP(1);SWDB;SP(millis());SWDE;SF;
 			  }
 			}
