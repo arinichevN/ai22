@@ -176,7 +176,7 @@ void puart_server(PUART *item, Device *devices, int len) {
 			} else if (PUART_CMD_IS(CMD_GET_FTS)) { //Serial.println("CMD_GET_FTS");
 			  FOREACH_DEVICE
 			  if (device->temperature.selected) {
-			    SP(device->temperature.id); SWDB; SP(device->temperature.output.value); SWDB; SP(device->temperature.output.state); SWDB; SP(device->temperature.output.tm); SWDE; SF;
+			    SP(device->temperature.id); SWDB; SP(device->temperature.output.value); SWDB; SP(device->temperature.output.tm); SWDB; SP(device->temperature.output.state); SWDE; SF;
 			    //  SP(device->temperature.id);SWDB;SP(25.18);SWDB;SP(1);SWDB;SP(millis());SWDE;SF;
 			  }
 			  if (device->humidity.selected) {
