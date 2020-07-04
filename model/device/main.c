@@ -33,9 +33,9 @@ int devices_begin(){
 	 * SET_DEVICE_STATIC_PARAM(int pin)
 	 * for each channel:
 	*/
-	//SET_DEVICE_STATIC_PARAM(2);
-	SET_DEVICE_STATIC_PARAM(3);
 	SET_DEVICE_STATIC_PARAM(7);
+	SET_DEVICE_STATIC_PARAM(2);
+	SET_DEVICE_STATIC_PARAM(3);
 	
 	if(DEVICE_IND != DEVICE_COUNT){printdln("call SET_DEVICE_STATIC_PARAM for each device (sensor)"); return 0;}
 	FOREACH_DEVICE(devices)
@@ -75,7 +75,7 @@ void device_control(Device *item) {
 			if (r) {
 			  item->out1.value = v1;
 			  item->out2.value = v2;
-			  printd(v1); printd(" "); printdln(v2);
+			  printd(item->pin); printd(" "); printd(v1); printd(" "); printdln(v2);
 			}
 			item->out1.tm = item->out2.tm = getCurrentTs();
 		}

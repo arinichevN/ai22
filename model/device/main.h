@@ -10,7 +10,7 @@
  * -user_config:
  * set number of DHT22 sensors you want to use:
  */
-#define DEVICE_COUNT 2
+#define DEVICE_COUNT 3
 
 #define FOREACH_DEVICE(LIST) for(size_t i=0;i<DEVICE_COUNT;i++){ Device *device = &LIST[i];
 	
