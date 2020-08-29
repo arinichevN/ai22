@@ -58,7 +58,7 @@
  * -user_config:
  * uncomment the following line if you need debug messages:
  */
-#define MODE_DEBUG
+//#define MODE_DEBUG
 
 #endif 
 
