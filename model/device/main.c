@@ -2,21 +2,26 @@
 
 Device devices[DEVICE_COUNT];
 
+void device_INIT(Device *item);
+void device_RUN(Device *item);
+void device_OFF(Device *item);
+void device_FAILURE(Device *item);
+	
 void device_setStaticParam(Device *item, int pin){
 	item->pin = pin;
 }
 
 void device_begin(Device *item) {
-	item->state = OFF;
+	item->control = device_OFF;
 }
 
 void device_start(Device *item){
-	item->state = INIT;
+	item->control = device_INIT;
 }
 
 void device_stop(Device *item){
-	if(item->channel1->state == OFF && item->channel2->state == OFF){
-		item->state = OFF;
+	if(channel_getState(item->channel1) == OFF && channel_getState(item->channel2) == OFF){
+		item->control = device_OFF;
 	}
 }
 
@@ -31,7 +36,7 @@ int devices_begin(){
 	 * -user_config:
 	 * call
 	 * SET_DEVICE_STATIC_PARAM(int pin)
-	 * for each channel:
+	 * for each device:
 	*/
 	SET_DEVICE_STATIC_PARAM(7);
 	SET_DEVICE_STATIC_PARAM(2);
@@ -65,43 +70,42 @@ static void device_selectInterval(Device *item){
 	}
 }
 
-void device_control(Device *item) {
-  switch (item->state) {
-    case RUN:
-		if (tonr(&item->tmr)) {
-			double v1 = 0.0, v2 = 0.0;
-			int r = item->read_func(item->pin, &v1, &v2);
-			item->out1.state = item->out2.state = r;
-			if (r) {
-			  item->out1.value = v1;
-			  item->out2.value = v2;
-			  printd(item->pin); printd(" "); printd(v1); printd(" "); printdln(v2);
-			}
-			item->out1.tm = item->out2.tm = getCurrentTs();
+void device_INIT(Device *item) {
+	device_selectInterval(item);
+	ton_reset(&item->tmr);
+	item->out1.state = item->out2.state = 0;
+	item->out1.tm = item->out2.tm = getCurrentTs();
+	if(!device_selectKind(item)){
+		channel_deviceFailed(item->channel1);
+		channel_deviceFailed(item->channel2);
+		item->control = device_FAILURE;
+		return;
+	}
+	pinMode(item->pin, INPUT);
+	channel_activate(item->channel1);
+	channel_activate(item->channel2);
+	item->control = device_RUN;
+}
+
+void device_RUN(Device *item) {
+	if (tonr(&item->tmr)) {
+		double v1 = 0.0, v2 = 0.0;
+		int r = item->read_func(item->pin, &v1, &v2);
+		item->out1.state = item->out2.state = r;
+		if (r) {
+		  item->out1.value = v1;
+		  item->out2.value = v2;
+		  printd(item->pin); printd(" "); printd(v1); printd(" "); printdln(v2);
 		}
-      break;
-    case OFF:
-		break;
-	case FAILURE:
-		break;
-    case INIT:
-		device_selectInterval(item);
-		ton_reset(&item->tmr);
-		item->out1.state = item->out2.state = 0;
 		item->out1.tm = item->out2.tm = getCurrentTs();
-		if(!device_selectKind(item)){
-			channel_deviceFailed(item->channel1);
-			channel_deviceFailed(item->channel2);
-			item->state = FAILURE;
-			return;
-		}
-		pinMode(item->pin, INPUT);
-		channel_activate(item->channel1);
-		channel_activate(item->channel2);
-		item->state = RUN;
-		break;
-    default:
-      break;
-  }
+	}
+}
+
+void device_OFF(Device *item) {
+	;
+}
+
+void device_FAILURE(Device *item) {
+	;
 }
 

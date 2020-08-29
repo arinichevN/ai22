@@ -5,7 +5,7 @@
 #include "../model/channel.h"
 #include "../app/main.h"
 #include "../app.h"
-#include "crc.h"
+#include "../util/crc.h"
 
 typedef struct {
 	int id;

@@ -14,7 +14,7 @@
 
 #define FOREACH_DEVICE(LIST) for(size_t i=0;i<DEVICE_COUNT;i++){ Device *device = &LIST[i];
 	
-typedef struct {
+typedef struct device_st{
 	int pin;
 	int (*read_func)(int, double*, double*);
 	int kind;
@@ -23,7 +23,7 @@ typedef struct {
 	Ton tmr;
 	struct channel_st *channel1;
 	struct channel_st *channel2;
-	int state;
+	void (*control)(struct device_st *);
 } Device;
 
 extern void device_begin(Device *item);

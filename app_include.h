@@ -7,7 +7,7 @@
 #include "util/check.c"
 #include "util/ton.c"
 #include "util/serial.c"
-#include "util/pmem.c"
+#include "pmem/main.c"
 
 #include "model/device/dht22.c"
 #include "model/device/main.c"
@@ -16,6 +16,7 @@
 #include "acp/main.c"
 #include "acp/loop/main.c"
 
+#include "app/error_indicator.c"
 #include "app/serial_config.c"
 #include "app/config.c"
 #include "app/serial.c"

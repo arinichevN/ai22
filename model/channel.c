@@ -2,6 +2,11 @@
 
 Channel channel_buf[CHANNEL_COUNT];
 
+void channel_INIT(Channel *item);
+void channel_RUN(Channel *item);
+void channel_FAILURE(Channel *item);
+void channel_OFF(Channel *item);
+
 int channel_normalizeDeviceKind(int kind){
 	switch(kind){
 		case DEVICE_KIND_DHT22T:
@@ -28,14 +33,19 @@ int channel_check(Channel *item){
 }
 
 const char *channel_getStateStr(Channel *item){
-	switch(item->state){
-		case RUN: return "RUN";
-		case OFF: return "OFF";
-		case FAILURE: return "FAILURE";
-		case DISABLE: return "DISABLE";
-		case INIT: return "INIT";
-	}
+	if(item->control == channel_RUN)			return "RUN";
+	else if(item->control == channel_OFF)		return "OFF";
+	else if(item->control == channel_FAILURE)	return "FAILURE";
+	else if(item->control == channel_INIT)		return "INIT";
 	return "?";
+}
+
+int channel_getState(Channel *item){
+	if(item->control == channel_RUN)			return RUN;
+	else if(item->control == channel_OFF)		return OFF;
+	else if(item->control == channel_FAILURE)	return FAILURE;
+	else if(item->control == channel_INIT)		return INIT;
+	return -1;
 }
 
 const char *channel_getErrorStr(Channel *item){
@@ -72,7 +82,7 @@ void channel_begin(Channel *item, size_t ind, int default_btn){
 		printd("\tNVRAM param\n");
 	}
 	item->ind = ind;
-	item->state = INIT;
+	item->control = channel_INIT;
 	printd("\tid: ");printdln(item->id);
 	printd("\n");
 }
@@ -106,7 +116,7 @@ int channels_begin(ChannelLList *channels, int default_btn){
 	extern Channel channel_buf[];
 	channels_buildFromArray(channels, channel_buf);
 	size_t i = 0;
-	FOREACH_CHANNEL(channels)
+	FOREACH_CHANNEL(channels){
 		channel_begin(channel, i, default_btn); i++;
 		if(channel->error_id != ERROR_NO) return 0;
 	}
@@ -116,7 +126,7 @@ int channels_begin(ChannelLList *channels, int default_btn){
 int channel_start(Channel *item){
 	printd("starting channel ");printd(item->ind);printdln(":");
 	item->enable = YES;
-	item->state = INIT;
+	item->control = channel_INIT;
 	PmemChannel pchannel;
 	if(pmem_getPChannel(&pchannel, item->ind)){
 		pchannel.enable = item->enable;
@@ -128,7 +138,7 @@ int channel_start(Channel *item){
 int channel_stop(Channel *item){
 	printd("stopping channel ");printdln(item->ind); 
 	item->enable = NO;
-	item->state = INIT;
+	item->control = channel_INIT;
 	PmemChannel pchannel;
 	if(pmem_getPChannel(&pchannel, item->ind)){
 		pchannel.enable = item->enable;
@@ -140,23 +150,23 @@ int channel_stop(Channel *item){
 int channel_reload(Channel *item){
 	printd("reloading channel ");printd(item->ind); printdln(":");
 	channel_setFromNVRAM(item, item->ind);
-	item->state = INIT;
+	item->control = channel_INIT;
 	return 1;
 }
 
 int channel_activate(Channel *item){
-	item->state = RUN;
+	item->control = channel_RUN;
 	return 1;
 }
 
 void channel_deviceFailed(Channel *item){
-	item->state = FAILURE;
+	item->control = channel_FAILURE;
 	item->error_id = ERROR_DEVICE_KIND;
 }
 
 int channels_activeExists(ChannelLList *channels){
-	FOREACH_CHANNEL(channels)
-		if(channel->state != OFF){
+	FOREACH_CHANNEL(channels){
+		if(channel->control != channel_OFF){
 			return 1;
 		}
 	}
@@ -164,7 +174,7 @@ int channels_activeExists(ChannelLList *channels){
 }
 
 void channels_stop(ChannelLList *channels){
-	FOREACH_CHANNEL(channels)
+	FOREACH_CHANNEL(channels){
 		channel_stop(channel);
 	}
 }
@@ -173,7 +183,7 @@ int channels_getIdFirst(ChannelLList *channels, int *out){
 	int success = 0;
 	int f = 0;
 	int v;
-	FOREACH_CHANNEL(channels)
+	FOREACH_CHANNEL(channels){
 		if(!f) { v=channel->id; f=1; success=1;}
 		if(channel->id < v) v = channel->id;
 	}
@@ -194,44 +204,40 @@ static int channel_selectDeviceOutput(Channel *item){
 	return 0;
 }
 
-int channel_control(Channel *item){
-	switch(item->state){
-		case RUN:
-			item->error_id = ERROR_NO;
-			if(item->out->state != 1){
-				item->error_id = ERROR_READ;
-			}
-			break;
-		case OFF:
-			break;
-		case FAILURE:
-			break;
-		case INIT:
-			item->error_id = ERROR_NO;
-			item->error_id = channel_check(item);
-		    if(item->error_id != ERROR_NO){
-		        item->state = FAILURE;
-		        break;
-		    }
-		    if(!channel_selectDeviceOutput(item)){
-				item->error_id = ERROR_DEVICE_KIND;
-				item->state = FAILURE;
-				break;
-			}
-			item->state = OFF;
-			if(item->enable == YES){
-				device_start(item->device);
-			}else{
-				device_stop(item->device);
-			}
-			break;
-		default:
-			break;
+void channel_INIT(Channel *item){
+	item->error_id = ERROR_NO;
+	item->error_id = channel_check(item);
+    if(item->error_id != ERROR_NO){
+        item->control = channel_FAILURE;
+        return;
+    }
+    if(!channel_selectDeviceOutput(item)){
+		item->error_id = ERROR_DEVICE_KIND;
+		item->control = channel_FAILURE;
+		return;
 	}
-	return item->state;
+	item->control = channel_OFF;
+	if(item->enable == YES){
+		device_start(item->device);
+	}else{
+		device_stop(item->device);
+	}
 }
 
+void channel_RUN(Channel *item){
+	item->error_id = ERROR_NO;
+	if(item->out->state != 1){
+		item->error_id = ERROR_READ;
+	}
+}
 
+void channel_OFF(Channel *item){
+	;
+}
+
+void channel_FAILURE(Channel *item){
+	;
+}
 
 int CHANNEL_FUN_GET(enable)(Channel *item){return item->enable;}
 int CHANNEL_FUN_GET(device_kind)(Channel *item){return item->device_kind;}
