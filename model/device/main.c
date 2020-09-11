@@ -21,6 +21,7 @@ void device_start(Device *item){
 
 void device_stop(Device *item){
 	if(channel_getState(item->channel1) == OFF && channel_getState(item->channel2) == OFF){
+		item->out1.state = item->out2.state = 0;
 		item->control = device_OFF;
 	}
 }
