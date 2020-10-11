@@ -43,5 +43,8 @@ void channel_setDeviceKind(Channel *item, int kind);
 extern void channel_deviceFailed(Channel *item);
 extern int channel_activate(Channel *item);
 extern int channel_getState(Channel *item);
+extern void channel_free(Channel *item);
+extern int channel_reset(Channel *item);
+extern int channel_disconnect(Channel *item);
 
 #endif

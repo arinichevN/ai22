@@ -123,31 +123,35 @@ int channels_begin(ChannelLList *channels, int default_btn){
 	return 1;
 }
 
+void channel_free(Channel *item){
+	;
+}
+
 int channel_start(Channel *item){
 	printd("starting channel ");printd(item->ind);printdln(":");
-	item->enable = YES;
 	item->control = channel_INIT;
-	PmemChannel pchannel;
-	if(pmem_getPChannel(&pchannel, item->ind)){
-		pchannel.enable = item->enable;
-		pmem_savePChannel(&pchannel, item->ind);
-	}
+	item->enable = YES;
+	CHANNEL_SAVE_FIELD(enable)
 	return 1;
 }
 
 int channel_stop(Channel *item){
 	printd("stopping channel ");printdln(item->ind); 
+	item->error_id = ERROR_NO;
+	item->control = channel_OFF;
 	item->enable = NO;
-	item->control = channel_INIT;
-	PmemChannel pchannel;
-	if(pmem_getPChannel(&pchannel, item->ind)){
-		pchannel.enable = item->enable;
-		pmem_savePChannel(&pchannel, item->ind);
-	}
+	CHANNEL_SAVE_FIELD(enable)
 	return 1;
 }
 
-int channel_reload(Channel *item){
+int channel_disconnect(Channel *item){
+	printd("disconnecting channel ");printdln(item->ind);
+	item->error_id = ERROR_NO;
+	item->control = channel_OFF;
+	return 1;
+}
+
+int channel_reset(Channel *item){
 	printd("reloading channel ");printd(item->ind); printdln(":");
 	channel_setFromNVRAM(item, item->ind);
 	item->control = channel_INIT;

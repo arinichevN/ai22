@@ -14,10 +14,8 @@
 typedef struct app_st{
 	int id;
 	int error_id;
-
 	AppErrorIndicator error_indicator;
 	void (*control)(struct app_st *);
-	void (*next_control)(struct app_st *);
 } App;
 
 

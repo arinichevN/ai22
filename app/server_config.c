@@ -6,6 +6,10 @@ extern ChannelLList channels;
 #include "../app/main.h"
 #include "../acp/command/main.h"
 
+ACPLSCommandNode *srvc_getServerCommandNext(int prev_command);
+ACPLSCommandNode *srvc_getServerCommand(int command);
+int srvc_getServerCommandCount();
+
 Channel *srvc_getChannel(ACPLS *item){
 	int id;
 	if(acp_packGetCellI(item->acpl->buf, ACP_REQUEST_IND_ID, &id)){
@@ -17,6 +21,24 @@ Channel *srvc_getChannel(ACPLS *item){
 		printdln("\tchannel not found");
 		return NULL;
 
+	}
+	printdln("\tfailed to get channel_id");
+	return NULL;
+}
+
+Channel *srvc_getNextAppChannel(ACPLS *item){
+	int id;
+	int found = 0;
+	if(acp_packGetCellI(item->acpl->buf, ACP_REQUEST_IND_PARAM1, &id)){
+		FOREACH_CHANNEL(&channels){
+			if(found) return channel;
+			if(id == channel->id){
+				found = 1;
+				continue;
+			}
+		}
+		printdln("\tchannel not found");
+		return NULL;
 	}
 	printdln("\tfailed to get channel_id");
 	return NULL;
@@ -83,6 +105,14 @@ void srvc_getChannelParamI(ACPLS *item, int (*getfunc)(Channel *)){
 	if(channel == NULL) {ACPLS_RESET return;}
 	int out = getfunc(channel);
 	int r = acp_buildPackII(item->acpl->buf, ACP_BUF_MAX_LENGTH, ACP_SIGN_RESPONSE, channel->id, out);
+	if(r){ACPLS_PREP_SEND}else{ACPLS_RESET}
+}
+
+void srvc_getConfirmChannelParamI(ACPLS *item, int (*getfunc)(Channel *)){
+	Channel *channel = srvc_getChannel(item);
+	if(channel == NULL) {ACPLS_RESET return;}
+	int out = getfunc(channel);
+	int r = acp_buildPackIII(item->acpl->buf, ACP_BUF_MAX_LENGTH, ACP_SIGN_RESPONSE, channel->id, out, 1);
 	if(r){ACPLS_PREP_SEND}else{ACPLS_RESET}
 }
 
@@ -171,6 +201,9 @@ void fgetChannelPmemParamUl(ACPLS *item, unsigned long (*getfunc)(PmemChannel *)
 #define SC_DEF_FUN_GETR_I(param) void SC_FUN_GETR(param) (ACPLS *item, HardwareSerial *serial){srvc_getChannelParamI(item, &CHANNEL_FUN_GET(param));}
 #define SC_DEF_FUN_GETR_F(param) void SC_FUN_GETR(param)(ACPLS *item, HardwareSerial *serial){srvc_getChannelParamF(item, &CHANNEL_FUN_GET(param));}
 
+#define SC_FUN_GETRC(param) acnf_getrc__ ## param
+#define SC_DEF_FUN_GETRC_I(param) void SC_FUN_GETRC(param) (ACPLS *item, HardwareSerial *serial){srvc_getConfirmChannelParamI(item, &CHANNEL_FUN_GET(param));}
+
 
 SC_DEF_FUN_SET_UL(poll_interval)
 SC_DEF_FUN_SET_I(device_kind)
@@ -203,12 +236,94 @@ void acnf_stop(ACPLS *item, HardwareSerial *serial){
 	ACPLS_RESET
 }
 
-void acnf_reload(ACPLS *item, HardwareSerial *serial){
+void acnf_reset(ACPLS *item, HardwareSerial *serial){
 	Channel *channel = srvc_getChannel(item);
 	if(channel!=NULL){
-		channel_reload(channel);
+		channel_reset(channel);
 	}
 	ACPLS_RESET
+}
+
+void acnf_getAppChannelCount (ACPLS *item, HardwareSerial *serial){
+	if(!srvc_forThisApp(item)) {ACPLS_RESET return;}
+	if(acp_buildPackII(item->acpl->buf, ACP_BUF_MAX_LENGTH, ACP_SIGN_RESPONSE, app.id, CHANNEL_COUNT)){
+		ACPLS_PREP_SEND
+	}else{
+		ACPLS_RESET
+	}
+}
+
+void acnf_getChannelIdFirst(ACPLS *item, HardwareSerial *serial){
+	if(!srvc_forThisApp(item)) {ACPLS_RESET return;}
+	int out;
+	int success = channels_getIdFirst(&channels, &out);
+	int r = acp_buildPackIII(item->acpl->buf, ACP_BUF_MAX_LENGTH, ACP_SIGN_RESPONSE, app.id, out, success);
+	if(r){ACPLS_PREP_SEND}else{ACPLS_RESET}
+}
+
+void acnf_getChannelIdNext (ACPLS *item, HardwareSerial *serial){
+	if(!srvc_forThisApp(item)) {ACPLS_RESET return;}
+	Channel *channel = srvc_getNextAppChannel(item);
+	int success = 0;
+	int id = 0;
+	if(channel != NULL) {
+		success = 1;
+		id = channel->id;
+	}
+	if(acp_buildPackIII(item->acpl->buf, ACP_BUF_MAX_LENGTH, ACP_SIGN_RESPONSE, app.id, id, success)){
+		ACPLS_PREP_SEND
+	}else{
+		ACPLS_RESET
+	}
+}
+
+void acnf_getAppAcpCommandExists(ACPLS *item, HardwareSerial *serial){
+	if(!srvc_forThisApp(item)) {ACPLS_RESET return;}
+	int command;
+	int success = 0;
+	if(!acp_packGetCellI(item->acpl->buf, ACP_REQUEST_IND_PARAM1, &command)){
+		goto done;
+	}
+	{ACPLSCommandNode *node = srvc_getServerCommand(command);
+	if(node != NULL) {
+		success = 1;
+	}}
+	done:
+	int r = acp_buildPackIII(item->acpl->buf, ACP_BUF_MAX_LENGTH, ACP_SIGN_RESPONSE, app.id, command, success);
+	if(r){ACPLS_PREP_SEND}else{ACPLS_RESET}
+}
+
+void acnf_getAppServerCommandCount(ACPLS *item, HardwareSerial *serial){
+	if(!srvc_forThisApp(item)) {ACPLS_RESET return;}
+	int c = srvc_getServerCommandCount();
+	int r = acp_buildPackII(item->acpl->buf, ACP_BUF_MAX_LENGTH, ACP_SIGN_RESPONSE,	 app.id, c);
+	if(r){ACPLS_PREP_SEND}else{ACPLS_RESET}
+}
+
+void acnf_getAppServerCommandFirst(ACPLS *item, HardwareSerial *serial){
+	if(!srvc_forThisApp(item)) {ACPLS_RESET return;}
+	extern ACPLSCommandNode acnodes[];
+	int first_command = acnodes[0].command;
+	int r = acp_buildPackII(item->acpl->buf, ACP_BUF_MAX_LENGTH, ACP_SIGN_RESPONSE,	 app.id, first_command);
+	if(r){ACPLS_PREP_SEND}else{ACPLS_RESET}
+}
+
+void acnf_getAppServerCommandNext(ACPLS *item, HardwareSerial *serial){
+	if(!srvc_forThisApp(item)) {ACPLS_RESET return;}
+	int prev_command;
+	int next_command = 0;
+	int success = 0;
+	if(!acp_packGetCellI(item->acpl->buf, ACP_REQUEST_IND_PARAM1, &prev_command)){
+		goto done;
+	}
+	{ACPLSCommandNode *node = srvc_getServerCommandNext(prev_command);
+	if(node != NULL){
+		success = 1;
+		next_command = node->command;
+	}}
+	done:
+	int r = acp_buildPackIII(item->acpl->buf, ACP_BUF_MAX_LENGTH, ACP_SIGN_RESPONSE, app.id, next_command, success);
+	if(r){ACPLS_PREP_SEND}else{ACPLS_RESET}
 }
 
 //void srvc_getrAppConfigField(ACPLS *item, int (*getfunc)(AppConfig *)){
@@ -373,67 +488,103 @@ void acnf_setAppSerialConfig(ACPLS *item, HardwareSerial *serial){srvc_setAppSer
 void acnf_setAppSerialRate(ACPLS *item, HardwareSerial *serial){srvc_setAppSerialConfigField(item, &appc_checkSerialRate, &APPCONFIGSR_SET_FIELD_FUNC(rate));}
 void acnf_setAppSerialMode(ACPLS *item, HardwareSerial *serial){srvc_setAppSerialConfigField(item, &serial_checkMode, &APPCONFIGSR_SET_FIELD_FUNC(mode));}
 
+#define SS_GETR		SERIAL_SERVER_RAM_GET_COMMANDS
+#define SS_GET		SERIAL_SERVER_NVRAM_GET_COMMANDS
+#define SS_SET		SERIAL_SERVER_NVRAM_SET_COMMANDS
+
 ACPLSCommandNode acnodes[] = {
-	{CMD_GET_ID_EXISTS,					&acnf_getExists},
+	{CMD_GETR_CHANNEL_FTS,						&acnf_getFTS},
 	
-#ifdef SERIAL_SERVER_RAM_GET_COMMANDS
-	{CMD_GETR_CHANNEL_FTS,				&acnf_getFTS},
-	{CMD_GETR_CHANNEL_STATE,			&acnf_getStateStr},
-	{CMD_GETR_CHANNEL_ERROR,			&acnf_getErrorStr},
+#ifdef SS_GETR
+	{CMD_GETR_CHANNEL_STATE,					&acnf_getStateStr},
+	{CMD_GETR_CHANNEL_ERROR,					&acnf_getErrorStr},
 #endif
 
-	{CMD_CHANNEL_START,					&acnf_start},
-	{CMD_CHANNEL_STOP,					&acnf_stop},
-	{CMD_CHANNEL_RELOAD,				&acnf_reload},
-
-#ifdef SERIAL_SERVER_NVRAM_GET_COMMANDS
-	{CMD_GET_CHANNEL_DEVICE_KIND,		&SC_FUN_GET(device_kind)},
-	{CMD_GET_RSENSOR_INTERVAL,			&SC_FUN_GET(poll_interval)},
-#endif
-
-#ifdef SERIAL_SERVER_NVRAM_SET_COMMANDS
-	{CMD_SET_CHANNEL_DEVICE_KIND,		&SC_FUN_SET(device_kind)},
-	{CMD_SET_RSENSOR_INTERVAL,			&SC_FUN_SET(poll_interval)},
-#endif
-
-#ifdef SERIAL_SERVER_RAM_GET_COMMANDS
-	{CMD_GETR_RSENSOR_INTERVAL,			&SC_FUN_GETR(poll_interval)},
-	{CMD_GETR_CHANNEL_DEVICE_KIND,		&SC_FUN_GETR(device_kind)},
-	{CMD_GETR_CHANNEL_ENABLE,			&SC_FUN_GETR(enable)},
-#endif
-
-#ifdef SERIAL_SERVER_NVRAM_SET_COMMANDS
-	{CMD_SET_CHANNEL_ID,				&acnf_setId},
-#endif
-
-#ifdef SERIAL_SERVER_NVRAM_SET_COMMANDS
-	{CMD_SET_APP_ID,					&acnf_setAppId},
-	{CMD_SET_APP_CHANNEL_ID_FIRST,		&acnf_setIdFirst},
-#endif
-
-	{CMD_APP_RESET,						&acnf_appReset},
+	{CMD_GET_ID_EXISTS,							&acnf_getExists},
 	
-#ifdef SERIAL_SERVER_RAM_GET_COMMANDS
-	{CMD_GET_APP_CHANNEL_ID_FIRST,		&acnf_getIdFirst},
-	{CMD_GET_APP_ID,					&acnf_getAppId},
-	{CMD_GET_APP_STATE,					&acnf_getAppState},
-	{CMD_GET_APP_ERROR,					&acnf_getAppError},
+	{CMD_GET_APP_CHANNEL_COUNT,					&acnf_getAppChannelCount},
+	{CMD_GET_APP_ACP_COMMAND_EXISTS,			&acnf_getAppAcpCommandExists},
+	{CMD_GET_APP_CHANNEL_ID_FIRST,				&acnf_getChannelIdFirst},
+	{CMD_GET_APP_CHANNEL_ID_NEXT,				&acnf_getChannelIdNext},
+
+	{CMD_CHANNEL_START,							&acnf_start},
+	{CMD_CHANNEL_STOP,							&acnf_stop},
+	{CMD_CHANNEL_RESET,							&acnf_reset},
+
+#ifdef SS_GET
+	{CMD_GET_CHANNEL_DEVICE_KIND,				&SC_FUN_GET(device_kind)},
+	{CMD_GET_RSENSOR_INTERVAL,					&SC_FUN_GET(poll_interval)},
 #endif
 
-#ifdef SERIAL_SERVER_NVRAM_SET_COMMANDS
-	{CMD_SET_APP_SERIAL_MODE,			&acnf_setAppSerialMode},
-	{CMD_SET_APP_SERIAL_RATE,			&acnf_setAppSerialRate},
-	{CMD_SET_APP_SERIAL_CONFIG,			&acnf_setAppSerialConfig},
+#ifdef SS_SET
+	{CMD_SET_CHANNEL_DEVICE_KIND,				&SC_FUN_SET(device_kind)},
+	{CMD_SET_RSENSOR_INTERVAL,					&SC_FUN_SET(poll_interval)},
 #endif
 
-#ifdef SERIAL_SERVER_NVRAM_GET_COMMANDS
-	{CMD_GET_APP_SERIAL_RATE,			&acnf_getAppSerialRate},
-	{CMD_GET_APP_SERIAL_CONFIG,			&acnf_getAppSerialConfig},
-	{CMD_GET_APP_SERIAL_MODE,			&acnf_getAppSerialMode}
+#ifdef SS_GETR
+	{CMD_GETR_RSENSOR_INTERVAL,					&SC_FUN_GETR(poll_interval)},
+	{CMD_GETR_CHANNEL_DEVICE_KIND,				&SC_FUN_GETR(device_kind)},
+	{CMD_GETR_CHANNEL_ENABLE,					&SC_FUN_GETR(enable)},
+#endif
+
+#ifdef SS_SET
+	{CMD_SET_CHANNEL_ID,						&acnf_setId},
+#endif
+
+#ifdef SS_SET
+	{CMD_SET_APP_ID,							&acnf_setAppId},
+	{CMD_SET_APP_CHANNEL_ID_FIRST,				&acnf_setIdFirst},
+#endif
+
+	{CMD_APP_RESET,								&acnf_appReset},
+	
+#ifdef SS_GETR
+	{CMD_GET_APP_CHANNEL_ID_FIRST,				&acnf_getIdFirst},
+	{CMD_GET_APP_ID,							&acnf_getAppId},
+	{CMD_GET_APP_STATE,							&acnf_getAppState},
+	{CMD_GET_APP_ERROR,							&acnf_getAppError},
+	{CMD_GET_APP_SERVER_COMMAND_NEXT,			&acnf_getAppServerCommandNext},
+	{CMD_GET_APP_SERVER_COMMAND_COUNT,			&acnf_getAppServerCommandCount},
+	{CMD_GET_APP_SERVER_COMMAND_FIRST,			&acnf_getAppServerCommandFirst},
+#endif
+
+#ifdef SS_SET
+	{CMD_SET_APP_SERIAL_MODE,					&acnf_setAppSerialMode},
+	{CMD_SET_APP_SERIAL_RATE,					&acnf_setAppSerialRate},
+	{CMD_SET_APP_SERIAL_CONFIG,					&acnf_setAppSerialConfig},
+#endif
+
+#ifdef SS_GET
+	{CMD_GET_APP_SERIAL_RATE,					&acnf_getAppSerialRate},
+	{CMD_GET_APP_SERIAL_CONFIG,					&acnf_getAppSerialConfig},
+	{CMD_GET_APP_SERIAL_MODE,					&acnf_getAppSerialMode}
 #endif
 
 };
 
 #define ACPL_CNODE_COUNT (sizeof acnodes / sizeof acnodes[0])
 
+int srvc_getServerCommandCount(){
+	return ACPL_CNODE_COUNT;
+}
 
+ACPLSCommandNode *srvc_getServerCommandNext(int prev_command){
+	int found = 0;
+	for(size_t i = 0; i<ACPL_CNODE_COUNT; i++){
+		if(found) return &acnodes[i];
+		if(acnodes[i].command == prev_command){
+			found = 1;
+			continue; 
+		}
+	}
+	return NULL;
+}
+
+ACPLSCommandNode *srvc_getServerCommand(int command){
+	for(size_t i = 0; i<ACPL_CNODE_COUNT; i++){
+		if(acnodes[i].command == command){
+			return &acnodes[i];
+		}
+	}
+	return NULL;
+}

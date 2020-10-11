@@ -14,31 +14,6 @@ typedef struct {
 	int enable;
 } PmemChannel;
 
-
-extern uint8_t pmem_calcAppConfigCrc(AppConfig *item);
-
-extern uint8_t pmem_calcChannelCrc(size_t ind);
-
-extern void pmem_setAppConfigCrc();
-
-extern void pmem_setChannelCrc(size_t ind);
-
-extern int pmem_checkSize(size_t channel_count);
-
-extern int pmem_checkAppConfigCrc(AppConfig *item);
-
-extern int pmem_checkChannelCrc(PmemChannel *item, int ind);
-
-extern void pmem_printSpace(size_t channel_count);
-
-extern int pmem_hasSpaceForChannel(int ind);
-
-extern int pmem_hasSpaceForAppConfig();
-
-extern void pmem_toChannel(Channel *channel, PmemChannel *pchannel);
-
-extern void pmem_fromChannel(PmemChannel *pchannel, Channel *channel);
-
 extern int pmem_getPChannel(PmemChannel *item, size_t ind) ;
 
 extern int pmem_getPChannelForce(PmemChannel *item, size_t ind) ;
