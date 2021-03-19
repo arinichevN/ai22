@@ -1,17 +1,25 @@
 #include "main.h"
 
-#define PMEM_APP_SIZE sizeof(AppConfig)
+#define PMEM_APP_SIZE sizeof(AppParam)
+#define PMEM_SERIAL_SIZE sizeof(AppSerialParam)
 #define PMEM_CRC_SIZE sizeof(uint8_t)
-#define PMEM_CHANNEL_SIZE sizeof(PmemChannel)
+#define PMEM_DEVICE_SIZE sizeof(DeviceParam)
 
-#define PMEM_APP_CRC_ADDR 0
 #define PMEM_APP_ADDR PMEM_CRC_SIZE
+#define PMEM_APP_CRC_ADDR 0
 
-#define PMEM_CHANNEL_ADDR(ind) 		PMEM_CRC_SIZE + PMEM_APP_SIZE + ind * (PMEM_CRC_SIZE + PMEM_CHANNEL_SIZE) + PMEM_CRC_SIZE
-#define PMEM_CHANNEL_CRC_ADDR(ind)	PMEM_CRC_SIZE + PMEM_APP_SIZE + ind * (PMEM_CRC_SIZE + PMEM_CHANNEL_SIZE)
+#define PMEM_SERIAL_ADDR(ind) 			PMEM_CRC_SIZE + PMEM_APP_SIZE + ind*(PMEM_CRC_SIZE + PMEM_SERIAL_SIZE) + PMEM_CRC_SIZE
+#define PMEM_SERIAL_CRC_ADDR(ind)		PMEM_CRC_SIZE + PMEM_APP_SIZE + ind*(PMEM_CRC_SIZE + PMEM_SERIAL_SIZE)
+
+#define PMEM_DEVICE_ADDR(ind) 			PMEM_CRC_SIZE + PMEM_APP_SIZE + serials.length*(PMEM_CRC_SIZE + PMEM_SERIAL_SIZE) + ind*(PMEM_CRC_SIZE + PMEM_DEVICE_SIZE) + PMEM_CRC_SIZE
+#define PMEM_DEVICE_CRC_ADDR(ind)		PMEM_CRC_SIZE + PMEM_APP_SIZE + serials.length*(PMEM_CRC_SIZE + PMEM_SERIAL_SIZE) + ind*(PMEM_CRC_SIZE + PMEM_DEVICE_SIZE)
+
 #define PMEM_CRC_INI 17
 
-uint8_t pmem_calcCrc(void *data, size_t sz){
+extern DeviceLList devices;
+extern AppSerialLList serials;
+
+uint8_t pmem_calcCrc(const void *data, size_t sz){
 	uint8_t crc = PMEM_CRC_INI;
 	uint8_t *pt =(uint8_t *) data;
 	for (size_t i = 0; i < sz; ++i) {
@@ -20,46 +28,44 @@ uint8_t pmem_calcCrc(void *data, size_t sz){
 	return crc;
 }
 
-uint8_t pmem_calcAppConfigCrc(AppConfig *item){
-	return pmem_calcCrc(item, sizeof (AppConfig));
-}
-
-uint8_t pmem_calcChannelCrc(PmemChannel *item){
-	return pmem_calcCrc(item, sizeof (PmemChannel));
-}
-
-void pmem_setAppConfigCrc(AppConfig *item){
-	uint8_t crc = pmem_calcAppConfigCrc(item);
+void pmem_setAppCrc(const AppParam *item){
+	uint8_t crc = pmem_calcCrc(item, PMEM_APP_SIZE);
 	EEPROM.put(PMEM_APP_CRC_ADDR, crc);
 }
 
-void pmem_setChannelCrc(PmemChannel *item, size_t ind){
-	uint8_t crc = pmem_calcChannelCrc(item);	
-	printd("   channel save crc: ");printdln(crc);
-	EEPROM.put(PMEM_CHANNEL_CRC_ADDR(ind), crc);
+void pmem_setDeviceCrc(const DeviceParam *item, size_t ind){
+	uint8_t crc = pmem_calcCrc(item, PMEM_DEVICE_SIZE);	
+	//printd("   device save crc: ");printdln(crc);
+	EEPROM.put(PMEM_DEVICE_CRC_ADDR(ind), crc);
 }
 
-int pmem_checkSize(size_t channel_count){
-	size_t total_bytes = channel_count * sizeof(PmemChannel) + sizeof(uint8_t) + 1;
+void pmem_setSerialCrc(const AppSerialParam *item, size_t ind){
+	uint8_t crc = pmem_calcCrc(item, PMEM_SERIAL_SIZE);	
+	//printd("   serial save crc: ");printdln(crc);
+	EEPROM.put(PMEM_SERIAL_CRC_ADDR(ind), crc);
+}
+
+int pmem_checkSize(){
+	size_t total_bytes = PMEM_APP_SIZE + PMEM_CRC_SIZE + serials.length*(PMEM_SERIAL_SIZE + PMEM_CRC_SIZE) + devices.length*(PMEM_DEVICE_SIZE + PMEM_CRC_SIZE) + 1;
 	if(EEPROM.length() <= total_bytes){
 		return 0;
 	}
 	return 1;
 }
 
-int pmem_checkAppConfigCrc(AppConfig *item){
+int pmem_checkAppCrc(const AppParam *item){
 	uint8_t crc1 = EEPROM[0];
-	uint8_t crc2 = pmem_calcAppConfigCrc(item);
+	uint8_t crc2 = pmem_calcCrc(item, PMEM_APP_SIZE);
 	if(crc1 != crc2){
 		return 0;
 	}
 	return 1;
 }
 
-int pmem_checkChannelCrc(PmemChannel *item, int ind){
-	uint8_t crc1 = EEPROM[PMEM_CHANNEL_CRC_ADDR(ind)];
-	printd("   channel get crc: ");printdln(crc1);
-	uint8_t crc2 = pmem_calcChannelCrc(item);
+int pmem_checkDeviceCrc(const DeviceParam *item, int ind){
+	uint8_t crc1 = EEPROM[PMEM_DEVICE_CRC_ADDR(ind)];
+	//printd("   device get crc: ");printdln(crc1);
+	uint8_t crc2 = pmem_calcCrc(item, PMEM_DEVICE_SIZE);
 	if(crc1 != crc2){
 		printd("   bad crc: ");printd(crc1);printd(" ");printdln(crc2);
 		return 0;
@@ -67,17 +73,35 @@ int pmem_checkChannelCrc(PmemChannel *item, int ind){
 	return 1;
 }
 
+int pmem_checkSerialCrc(const AppSerialParam *item, int ind){
+	uint8_t crc1 = EEPROM[PMEM_SERIAL_CRC_ADDR(ind)];
+	//printd("   serial get crc: ");printdln(crc1);
+	uint8_t crc2 = pmem_calcCrc(item, PMEM_SERIAL_SIZE);
+	if(crc1 != crc2){
+		printd("   bad crc: ");printd(crc1);printd(" ");printdln(crc2);
+		return 0;
+	}
+	return 1;
+}
 
-int pmem_hasSpaceForChannel(size_t ind){
-	size_t required_bytes = PMEM_CHANNEL_ADDR(ind) + sizeof(PmemChannel) + 1;
+int pmem_hasSpaceForDevice(size_t ind){
+	size_t required_bytes = PMEM_DEVICE_ADDR(ind) + sizeof(DeviceParam) + 1;
 	if(EEPROM.length() < required_bytes){
 		return 0;
 	}
 	return 1;
 }
 
-int pmem_hasSpaceForAppConfig(){
-	size_t required_bytes = PMEM_APP_ADDR + sizeof(AppConfig) + 1;
+int pmem_hasSpaceForSerial(size_t ind){
+	size_t required_bytes = PMEM_SERIAL_ADDR(ind) + PMEM_SERIAL_SIZE + PMEM_CRC_SIZE;
+	if(EEPROM.length() < required_bytes){
+		return 0;
+	}
+	return 1;
+}
+
+int pmem_hasSpaceForAppParam(){
+	size_t required_bytes = PMEM_APP_ADDR + sizeof(AppParam) + 1;
 	if(EEPROM.length() < required_bytes){
 		printdln("no space for app_config");
 		return 0;
@@ -85,114 +109,80 @@ int pmem_hasSpaceForAppConfig(){
 	return 1;
 }
 
-void pmem_toChannel(Channel *channel, PmemChannel *pchannel){
-	channel->id = pchannel->id;
-	channel_setDeviceKind(channel, pchannel->device_kind);
-	channel->poll_interval = pchannel->poll_interval;
-	channel->enable = pchannel->enable;
-}
-
-void pmem_fromChannel(PmemChannel *pchannel, Channel *channel){
-	pchannel->id = channel->id;
-	pchannel->device_kind = channel->device_kind;
-	pchannel->poll_interval = channel->poll_interval;
-	pchannel->enable = channel->enable;
-}
-
-int pmem_getPChannel(PmemChannel *item, size_t ind) {
-	if(!pmem_hasSpaceForChannel(ind)){
+int pmem_getSerialParam(AppSerialParam *item, size_t ind) {
+	if(!pmem_hasSpaceForSerial(ind)){
 		return 0;
 	}
-	PmemChannel t_item;
-	EEPROM.get(PMEM_CHANNEL_ADDR(ind), t_item);
-	if(!pmem_checkChannelCrc(&t_item, ind)){
+	AppSerialParam t_item;
+	EEPROM.get(PMEM_SERIAL_ADDR(ind), t_item);
+	if(!pmem_checkSerialCrc(&t_item, ind)){
 		return 0;
 	}
 	*item = t_item;
 	return 1;
 }
 
-int pmem_getPChannelForce(PmemChannel *item, size_t ind) {
-	if(!pmem_hasSpaceForChannel(ind)){
+int pmem_saveSerialParam(const AppSerialParam *item, size_t ind) {
+	//printd("(saving serial: ");printd(ind);
+	if(!pmem_hasSpaceForSerial(ind)){
+		printd("no space) ");
 		return 0;
 	}
-	EEPROM.get(PMEM_CHANNEL_ADDR(ind), *item);
+	EEPROM.put(PMEM_SERIAL_ADDR(ind), *item);
+	pmem_setSerialCrc(item, ind);
+	printd("done) ");
 	return 1;
 }
 
-int pmem_getAppConfig(AppConfig *item) {
-	if(!pmem_hasSpaceForAppConfig()){
+int pmem_getDeviceParam(DeviceParam *item, size_t ind) {
+	if(!pmem_hasSpaceForDevice(ind)){
 		return 0;
 	}
-	AppConfig tout;
+	DeviceParam t_item;
+	EEPROM.get(PMEM_DEVICE_ADDR(ind), t_item);
+	if(!pmem_checkDeviceCrc(&t_item, ind)){
+		return 0;
+	}
+	*item = t_item;
+	return 1;
+}
+
+int pmem_saveDeviceParam(const DeviceParam *item, size_t ind){
+	//printd("(saving device: ");printd(ind);
+	if(!pmem_hasSpaceForDevice(ind)){
+		printd("no space) ");
+		return 0;
+	}
+	EEPROM.put(PMEM_DEVICE_ADDR(ind), *item);
+	pmem_setDeviceCrc(item, ind);
+	printd("done) ");
+	return 1;
+}
+
+int pmem_getAppParam(AppParam *item) {
+	if(!pmem_hasSpaceForAppParam()){
+		return 0;
+	}
+	AppParam tout;
 	EEPROM.get(PMEM_APP_ADDR, tout);
-	if(!pmem_checkAppConfigCrc(&tout)){
+	if(!pmem_checkAppCrc(&tout)){
 		return 0;
 	}
 	*item = tout;
 	return 1;
 }
 
-int pmem_getAppConfigForce(AppConfig *item) {
-	//if(!pmem_hasSpaceForAppConfig()){
-	//	return 0;
-//	}
-	AppConfig temp;
-	EEPROM.get(PMEM_APP_ADDR, temp);
-	*item = temp;	
-	return 1;
-}
-
-int pmem_getChannel(Channel *item, size_t ind) {
-	if(!pmem_hasSpaceForChannel(ind)){
-		printdln("   no space for channel");
-		return 0;
-	}
-	PmemChannel buf;
-	EEPROM.get(PMEM_CHANNEL_ADDR(ind), buf);
-	if(!pmem_checkChannelCrc(&buf, ind)){
-		return 0;
-	}
-	pmem_toChannel(item, &buf);
-	return 1;
-}
-
-int pmem_savePChannel(PmemChannel *item, size_t ind){
-	printd("(saving channel: ");printd(ind);
-	if(!pmem_hasSpaceForChannel(ind)){
-		printd("no space) ");
-		return 0;
-	}
-	EEPROM.put(PMEM_CHANNEL_ADDR(ind), *item);
-	pmem_setChannelCrc(item, ind);
-	printd("done) ");
-	return 1;
-}
-int pmem_saveChannel(Channel *item, size_t ind){
-	PmemChannel buf;
-	pmem_fromChannel(&buf, item);
-	return pmem_savePChannel(&buf, ind);
-}
-
-
-int pmem_saveAppConfig(AppConfig *item){
-	printdln("saving device");
-	if(!pmem_hasSpaceForAppConfig()){
+int pmem_saveAppParam(const AppParam *item){
+	//printdln("saving device");
+	if(!pmem_hasSpaceForAppParam()){
 		printdln("pmem: no space for device");
 		return 0;
 	}
 	EEPROM.put(PMEM_APP_ADDR, *item);
-	pmem_setAppConfigCrc(item);
+	pmem_setAppCrc(item);
 	return 1;
 }
 
-PMEMCHANNEL_DEF_GET_FIELD_FUNC(id, int)
-PMEMCHANNEL_DEF_GET_FIELD_FUNC(device_kind, int)
-PMEMCHANNEL_DEF_GET_FIELD_FUNC(poll_interval, unsigned long)
-
-PMEMCHANNEL_DEF_SET_FIELD_FUNC(id, int)
-PMEMCHANNEL_DEF_SET_FIELD_FUNC(device_kind, int)
-PMEMCHANNEL_DEF_SET_FIELD_FUNC(poll_interval, unsigned long)
 
 
 
