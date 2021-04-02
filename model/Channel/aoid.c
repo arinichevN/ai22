@@ -12,9 +12,7 @@ static void channel_serveAoidRequestSelf(void *vself, Aoid *oid, void *vserver, 
 			channel_stop(self);
 			acpls_reset(server);
 			return;
-		case CMD_AOID_GET_ACP_COMMAND_SUPPORTED:
-			aoidServer_sendSupportedSS(oid, server);
-			return;
+		CASE_AOID_GET_ACP_COMMAND_SUPPORTED(SS)
 	}
 	acpls_reset(server);
 }
@@ -22,9 +20,7 @@ static void channel_serveAoidRequestSelf(void *vself, Aoid *oid, void *vserver, 
 //static void channel_serveRequestNone(void *vself, Aoid *oid, void *vserver, int command) {
 	//Acpls *server = (Acpls *) vserver;
 	//switch(command){
-		//case CMD_AOID_GET_ACP_COMMAND_SUPPORTED:
-			//aoidServer_sendSupportedNone(oid, server);
-			//return;
+		//CASE_AOID_GET_ACP_COMMAND_SUPPORTED(None)
 	//}
 	//acpls_reset(server);
 //}
@@ -62,9 +58,7 @@ static void channel_serveAoidRequestGGS(void *vself, Aoid *oid, void *vserver, i
 			}
 			acpls_reset(server);
 			return;
-		case CMD_AOID_GET_ACP_COMMAND_SUPPORTED:
-			aoidServer_sendSupportedGGS(oid, server);
-			return;
+		CASE_AOID_GET_ACP_COMMAND_SUPPORTED(GGS)
 	}
 	acpls_reset(server);
 }
@@ -84,9 +78,7 @@ static void channel_serveAoidRequestDeviceKind(void *vself, Aoid *oid, void *vse
 		case CMD_AOID_GET_NVRAM_VALUE:
 			aoidServer_sendII(oid, server, self->device_kind, YES);
 			return;
-		case CMD_AOID_GET_ACP_COMMAND_SUPPORTED:
-			aoidServer_sendSupportedGG(oid, server);
-			return;
+		CASE_AOID_GET_ACP_COMMAND_SUPPORTED(GG)
 	}
 	acpls_reset(server);
 }

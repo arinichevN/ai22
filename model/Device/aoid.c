@@ -16,9 +16,7 @@ static void device_serveAoidRequestSelf(void *vself, Aoid *oid, void *vserver, i
 			device_reset(self);
 			acpls_reset(server);
 			return;
-		case CMD_AOID_GET_ACP_COMMAND_SUPPORTED:
-			aoidServer_sendSupportedSSR(oid, server);
-			return;
+		CASE_AOID_GET_ACP_COMMAND_SUPPORTED(SSR)
 	}
 	acpls_reset(server);
 }
@@ -26,9 +24,7 @@ static void device_serveAoidRequestSelf(void *vself, Aoid *oid, void *vserver, i
 //static void device_serveRequestNone(void *vself, Aoid *oid, void *vserver, int command) {
 	//Acpls *server = (Acpls *) vserver;
 	//switch(command){
-		//case CMD_AOID_GET_ACP_COMMAND_SUPPORTED:
-			//aoidServer_sendSupportedNone(oid, server);
-			//return;
+		//CASE_AOID_GET_ACP_COMMAND_SUPPORTED(None)
 	//}
 	//acpls_reset(server);
 //}
@@ -66,9 +62,7 @@ static void device_serveAoidRequestGGS(void *vself, Aoid *oid, void *vserver, in
 			}
 			acpls_reset(server);
 			return;
-		case CMD_AOID_GET_ACP_COMMAND_SUPPORTED:
-			aoidServer_sendSupportedGGS(oid, server);
-			return;
+		CASE_AOID_GET_ACP_COMMAND_SUPPORTED(GGS)
 	}
 	acpls_reset(server);
 }

@@ -68,7 +68,7 @@ void app_RUN(){
 void app_uploadDelay(){
 	pinMode(INDICATOR_PIN, OUTPUT);
 	digitalWrite(INDICATOR_PIN, HIGH);
-	delay(5000);
+	delay(APP_UPLOAD_DELAY_MS);
 	digitalWrite(INDICATOR_PIN, LOW);
 }
 
@@ -134,15 +134,15 @@ void app_begin(){
 		app_error_id = ERROR_PARAM;
 		goto err;
 	}
-	delay(300);
+	//delay(300);
 	if(!serials_begin(default_btn)){
 		app_error_id = ERROR_SERIAL;
 		goto err;
 	}
 	sensorMutex_begin();
-	delay(300);
+	//delay(300);
 	devices_begin(default_btn);
-	delay(300);
+	//delay(300);
 #ifdef USE_AOIDS
 	if(!aoids_begin()){
 		app_error_id = ERROR_AOID;

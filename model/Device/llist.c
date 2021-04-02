@@ -27,9 +27,7 @@ static void deviceLList_serveAoidRequestSelf(void *vself, Aoid *oid, void *vserv
 	//DeviceLList *self = (DeviceLList *) vself;
 	Acpls *server = (Acpls *) vserver;
 	switch(command){
-		case CMD_AOID_GET_ACP_COMMAND_SUPPORTED:
-			aoidServer_sendSupportedNone(oid, server);
-			return;
+		CASE_AOID_GET_ACP_COMMAND_SUPPORTED(None)
 	}
 	acpls_reset(server);
 }
