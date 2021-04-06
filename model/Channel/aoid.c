@@ -31,20 +31,23 @@ static void channel_serveAoidRequestGGS(void *vself, Aoid *oid, void *vserver, i
 	switch(command){
 		case CMD_AOID_GET_RAM_VALUE:
 			sendRamParam(oid, server, self);
+			{printd("channel get r id: "); printd(self->id); printd(", master ind: "); Device *m = (Device *) self->master->self; printdln(m->ind);}
 			return;
 		case CMD_AOID_GET_NVRAM_VALUE:{
+				printd("channel get nv id: "); printd(self->id); printd(", master ind: "); Device *m = (Device *) self->master->self; printdln(m->ind);
 				yn_t success = NO;
 				ChannelParam param;
 				memset(&param, 0, sizeof param);
-				if(self->master->getChannelParam(self->master, self->device_kind, &param)){
+				if(self->master->getChannelParam(self->master->self, self->device_kind, &param)){
 					success = YES;
 				}
 				sendNvramParam(oid, server, &param, success);
 			}
 			return;
 		case CMD_AOID_SET_NVRAM_VALUE:{
+				printd("channel set nv id: "); printd(self->id); printd(", master ind: "); Device *m = (Device *) self->master->self; printdln(m->ind);
 				ChannelParam param;
-				if(!self->master->getChannelParam(self->master, self->device_kind, &param)){
+				if(!self->master->getChannelParam(self->master->self, self->device_kind, &param)){
 					acpls_reset(server);
 					return;
 				}
@@ -53,7 +56,7 @@ static void channel_serveAoidRequestGGS(void *vself, Aoid *oid, void *vserver, i
 					return;
 				}
 				if(channelParam_check(&param) == ERROR_NO){
-					self->master->saveChannelParam(self->master, self->device_kind, &param);
+					self->master->saveChannelParam(self->master->self, self->device_kind, &param);
 				}
 			}
 			acpls_reset(server);

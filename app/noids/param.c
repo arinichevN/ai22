@@ -6,7 +6,7 @@
  */
 void noidsParam_setDefault(NoidsParam *self){
 	self->is_first = NO;
-	self->next_external_noid_id = 31;
+	self->next_external_noid_id = NOID_ID_UNKNOWN;
 }
 
 err_t noidsParam_check(const NoidsParam *self){

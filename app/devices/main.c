@@ -10,9 +10,9 @@
  * {humidity channel id}
  */
 const DeviceParam DEVICE_DEFAULT_PARAMS[] = {
-	{3, 2300, {21}, {22}},
-	{4, 2300, {23}, {24}},
-	{5, 2300, {25}, {26}},
+	{3, 2300, {31}, {32}},
+	{4, 2300, {33}, {34}},
+	{5, 2300, {35}, {36}},
 };
 
 #define DEVICE_COUNT (sizeof DEVICE_DEFAULT_PARAMS / sizeof DEVICE_DEFAULT_PARAMS[0])

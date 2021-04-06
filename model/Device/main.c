@@ -31,6 +31,7 @@ static int device_getChannelParam(void *vself, dk_t device_kind, void *vparam){
 	Device *self = (Device *) vself;
 	ChannelParam *param = (ChannelParam *) vparam;
 	DeviceParam dparam;
+	printd("device get param "); printdln(self->ind);
 	if(pmem_getDeviceParam(&dparam, self->ind)){
 		switch(device_kind){
 			case DEVICE_KIND_DHT22T:
@@ -133,7 +134,7 @@ void device_begin(Device *self, size_t ind){
 	self->slave_h = &self->humidity.im_slave;
 	dht22_begin(&self->sensor, self->pin);
 	self->control = device_OFF;
-	printd("\tpin: ");printdln(self->pin);
+	printd("\t ind: "); printd(self->ind); printd(", pin: ");printdln(self->pin);
 	printd("\n");
 }
 

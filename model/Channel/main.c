@@ -74,6 +74,7 @@ void channel_begin(Channel *self, dk_t device_kind, Channel *other_channel, iMas
 	self->output.success = NO;
 	self->error_id = ERROR_NO;
 	self->state = STATE_OFF;
+	printd("channel id: "); printd(self->id); printd(", master ind: "); Device *m = (Device *) self->master->self; printdln(m->ind);
 }
 
 int channel_start(Channel *self){

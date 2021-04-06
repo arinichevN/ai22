@@ -130,7 +130,7 @@ void acnf_noidExists(Acpls *server, int command){
 				goto found;
 			}
 		}
-		printdln("\tOID not found");
+		printd(id); printdln(" NOID not found");
 		acpls_reset(server);
 		return;
 
